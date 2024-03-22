@@ -1,0 +1,98 @@
+{
+    "browse_default_path": "C:/Users/razbo/Downloads",
+    "version": 1.02,
+    "lambda_server": {
+        "destination_path": "/mnt/data2/drone/mchenr49/yolov5/data/training_data/",
+        "username": "mchenr49"
+    },
+    "classes": {
+        "berry": [
+            "blue",
+            "green"
+        ],
+        "bush": [
+            "bush"
+        ],
+        "scorch": [
+            "scorch"
+        ]
+    },
+    "augmentations": {
+        "mode": "splitting",
+        "split_size": 640,
+        "seed": false,
+        "blur": false,
+        "blur_amount": 2,
+        "resize": false,
+        "resize_amount": 100,
+        "split_type": "random",
+        "dataset_path": "./data/Example/",
+        "dataset_dir": "train",
+        "destination_path": "./finished/",
+        "finished_filename": "Example"
+    },
+    "datasets": {
+        "percent_train": 70,
+        "percent_valid": 20,
+        "percent_test": 10,
+        "seed": "-1",
+        "data_path": "/mnt/data2/drone/mchenr49/yolov5/data/training_data/",
+        "classes": "bush"
+    },
+    "appearance": {
+        "current_theme": "dark_theme",
+        "themes": {
+            "blue_theme": {
+                "main_bg": [
+                    164,
+                    206,
+                    252
+                ],
+                "text": [
+                    15,
+                    51,
+                    117
+                ],
+                "settings_bg": [
+                    119,
+                    182,
+                    251
+                ]
+            },
+            "dark_theme": {
+                "main_bg": [
+                    33,
+                    37,
+                    41
+                ],
+                "text": [
+                    206,
+                    212,
+                    218
+                ],
+                "settings_bg": [
+                    52,
+                    58,
+                    64
+                ]
+            },
+            "light_theme": {
+                "main_bg": [
+                    248,
+                    249,
+                    250
+                ],
+                "text": [
+                    33,
+                    37,
+                    41
+                ],
+                "settings_bg": [
+                    206,
+                    212,
+                    218
+                ]
+            }
+        }
+    }
+}
