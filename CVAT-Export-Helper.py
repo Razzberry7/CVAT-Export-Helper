@@ -23,6 +23,9 @@ from paramiko import SSHClient
 from scp import SCPClient
 from PIL import ImageTk, Image
 import json
+import math
+from scipy.spatial import ConvexHull
+import numpy as np
 
 import util.config_parser as config_parser
 import util.dataset_splitter as dataset_splitter
@@ -549,6 +552,133 @@ def popup_add_to_config():
                 command=lambda: remove(dropdown_val.get()))
     b2.grid(row=3, column=2, padx=5, pady=5)
 
+
+#for given two points in convex hull, finds unit vector and orthogonal unit vector and use them as the axis of the rectangle.
+def smallestRect(j0, j1, vertices, coords):
+  u = [0] * 2
+  u[0] = coords[vertices[j1]]-coords[vertices[j0]]
+  u[0] = u[0]/np.linalg.norm(u[0])
+  u[1] = [-u[0][1],u[0][0]]
+  index=[vertices[j1],vertices[j1],vertices[j1],vertices[j1]]
+  origin = coords[vertices[j0]]
+  zero = [np.dot(u[0],coords[vertices[j1]]), np.dot(u[1],coords[vertices[j1]])] #j1 will always be min Y.
+  support = [zero, zero, zero, zero]
+
+  for vert in vertices:
+    diff = coords[vert]
+    v = [np.dot(u[0],diff), np.dot(u[1],diff)]
+
+    if(v[0] > support[1][0] or (v[0] == support[1][0] and v[1] > support[1][1])): #If same max X, get bigger Y
+      index[1] = vert
+      support[1] = v
+
+    if(v[1] > support[2][1] or (v[1] == support[2][1] and v[0] < support[2][0])): #If same max Y, get smaller X
+      index[2] = vert
+      support[2] = v
+
+    if(v[0] < support[3][0] or (v[0] == support[3][0] and v[1] < support[3][1])): #If same min X, get smaller Y
+      index[3] = vert
+      support[3] = v
+
+  corners = fourPoints(u, support)
+  size = (support[1][0] - support[3][0]) * (support[2][1] - support[0][1])
+  return size, index, corners;
+
+#Convert the oriented coordinates to the regular x-axis and y-axis coordinates
+def toCoords(vector, u):
+  x = (vector[0] * u[0][0] + vector[1] * u[1][0])
+  y = (vector[0] * u[0][1] + vector[1] * u[1][1])
+  return [x,y]
+
+#get the four points of the rectangle and return the coordinates.
+# u is size 2 array each containing major axis and minor axis of the rectangle as unit vectors
+# support is array of 4 points of the convex hull used to create the bounding boxd
+def fourPoints(u, support):
+  points = [0] * 4
+  LeftTop = [support[3][0], support[2][1]]  #(x min, y max)
+  RightTop = [support[1][0], support[2][1]] #(x max, y max)
+  RightBot = [support[1][0], support[0][1]] #(x max, y min)
+  LeftBot = [support[3][0], support[0][1]]  #(x min, y min)
+  points[0] = toCoords(LeftTop, u)
+  points[1] = toCoords(RightTop, u)
+  points[2] = toCoords(RightBot, u)
+  points[3] = toCoords(LeftBot, u)
+  return np.array(points)
+
+#return the corners of minimum bounding box of given points
+def MinimumRectangle(points):
+  if(len(points) < 3):
+    print("The number of points have to be greater than 2")
+    return None
+  coords = np.array(points)
+  hull = ConvexHull(coords)
+  minSize, minRect, minCorners = smallestRect(hull.vertices.size - 1, 0, hull.vertices, coords) #first rectangle as default
+  for j in range(hull.vertices.size - 1): #check all vertices and get the smallest size rectangle
+    j1 = j
+    j2 = j + 1
+    size, rect, corners = smallestRect(j1, j2, hull.vertices, coords)
+    if(size < minSize):
+      rectCoords = rect
+      minSize = size
+      minRect = rect
+      minCorners = corners
+  return minCorners
+
+def convertToDota(file_path):
+  if(file_path != ""):
+    label_path = f"{file_path}labelTxt/"
+    if os.path.exists(label_path):
+        shutil.rmtree(label_path)
+        os.mkdir(label_path)
+    else:
+        os.mkdir(label_path)
+
+    annotation_path = ""
+    annotation_file_name = ""
+    for file in os.listdir(f"{file_path}annotations/"):
+        annotation_path = f"{file_path}annotations/{file}"
+        annotation_file_name = file
+    coco = json.load(open(annotation_path, 'r'))
+    img_names = [img["file_name"][:-4] for img in coco["images"]]
+
+    #create label txt files for each image
+    for fname in img_names:
+        f = open(f"{file_path}labelTxt/{fname}.txt", 'w')
+        f.close()
+    print(coco["annotations"][0]["segmentation"])
+
+    with open(f"{file_path}images.txt", 'w') as f:
+        for fname in img_names:
+            print(fname, file = f)
+
+    #convert annotations to labels
+    for annotation in coco["annotations"]:
+        segmentation = annotation["segmentation"][0]
+        if annotation["id"] == 1:
+          print(type(segmentation))
+        image_id = annotation["image_id"]
+        image_name = img_names[int(image_id) - 1]
+        coords = [[segmentation[index * 2], segmentation[(index * 2 + 1)]] for index in range(int(len(segmentation) / 2))]
+        corners = MinimumRectangle(coords)
+        classname = "CR"
+
+        ##Create file
+        with open(f"{label_path}{image_name}.txt", 'a') as f:
+            print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
+        annotation["segmentation"][0] = [corners[0][0], corners[0][1], corners[1][0], corners[1][1], corners[2][0], corners[2][1], corners[3][0], corners[3][1]]
+    print(coco["annotations"][0]["segmentation"])
+
+    print(annotation_file_name)
+    oldAnn_path = f"{file_path}annotations_old/"
+    if os.path.exists(oldAnn_path):
+        shutil.rmtree(oldAnn_path)
+        os.mkdir(oldAnn_path)
+    else:
+        os.mkdir(oldAnn_path)
+    shutil.move(annotation_path, f"{oldAnn_path}{annotation_file_name}")
+
+    with open(f"{annotation_path}.json", 'w') as f:
+      json.dump(coco, f)
 
 ## GLOBAL VARIABLES ##
 file_path = ""
