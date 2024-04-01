@@ -15,6 +15,9 @@
         ],
         "scorch": [
             "scorch"
+        ],
+        "CR": [
+            "CR"
         ]
     },
     "augmentations": {
