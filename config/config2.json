@@ -1,6 +1,6 @@
 {
     "browse_default_path": "C:/Users/Duwon/Downloads/TestingCVATExport",
-    "version": 1.02,
+    "version": 1.11,
     "lambda_server": {
         "destination_path": "/mnt/data2/drone/hamduw78/data/training_data/",
         "username": "hamduw78"
