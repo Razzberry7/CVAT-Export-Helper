@@ -26,6 +26,7 @@ import json
 
 import util.config_parser as config_parser
 import util.dataset_splitter as dataset_splitter
+import util.polygon_obb as polygon_obb
 
 # Things needed for building with Pyinstaller
 building = False
@@ -239,7 +240,7 @@ def popup_show_error(error_type, error_message):
 
 
 # Popup menu for exporting
-def popup_export_helper(file_path):
+def popup_export_helper(file_path, button_number):
     # Inner method for checking the percentages add up to 100
     def check_percentages():
         if int(eh_train_percent_tb.get()) + int(eh_valid_percent_tb.get()) + int(eh_test_percent_tb.get()) == 100:
@@ -261,7 +262,16 @@ def popup_export_helper(file_path):
             with open(f"{path_prefix}config/config2.json", 'w') as outfile:
                 json.dump(conf, outfile, indent=4)
 
-            export_helper(file_path,
+            if(button_number == 1):
+                conf.datasets.percent_train = eh_train_percent_tb.get()
+                conf.datasets.percent_valid = eh_valid_percent_tb.get()
+                conf.datasets.percent_test = eh_valid_percent_tb.get()
+                conf.datasets.seed = eh_seed_tb.get()
+                conf.datasets.data_path = eh_data_path_tb.get()
+                conf.datasets.classes = eh_class_settings_var.get()
+                convertToDota(file_path)
+            else:
+                export_helper(file_path,
                           int(eh_train_percent_tb.get()),
                           int(eh_valid_percent_tb.get()),
                           int(eh_test_percent_tb.get()),
@@ -548,7 +558,158 @@ def popup_add_to_config():
                 style='color.TButton',
                 command=lambda: remove(dropdown_val.get()))
     b2.grid(row=3, column=2, padx=5, pady=5)
+    
+def convertToDota(zfile_path):
+  if(zfile_path != ""):
+    #extract the zipped file
+    dir_path = os.path.dirname(zfile_path) + "/"
+    base_name_path = os.path.basename(zfile_path)[:-4] + "/"
+    file_path = f"{dir_path}{base_name_path}"
+    if os.path.exists(file_path):
+        shutil.rmtree(file_path)
+        os.mkdir(file_path)
+        print("WARNING: folder with the same name as the zip file already exists, so I have deleted this folder and created a new one while extracting the zip file")
+    else:
+        os.mkdir(file_path)
+    with ZipFile(zfile_path, "r") as zfile:
+        zfile.extractall(path = file_path)
+    
+    #create labels temporary folder to store the annotations
+    label_path = f"{file_path}labelTxt/"
+    if os.path.exists(label_path):
+        shutil.rmtree(label_path)
+        os.mkdir(label_path)
+        print("WARNING: labels folder already exists, so I have deleted this folder and created a new one")
+    else:
+        os.mkdir(label_path)
 
+    annotation_path = ""
+    annotation_file_name = ""
+    for file in os.listdir(f"{file_path}annotations/"):
+        annotation_path = f"{file_path}annotations/{file}"
+        annotation_file_name = file
+    coco = json.load(open(annotation_path, 'r'))
+    img_names = []
+    for img in coco["images"]:
+        if img["file_name"].endswith((".jpg", ".JPG", ".png", ".PNG")):
+            img_names.append(img["file_name"][:-4])
+        elif img["file_name"].endswith((".jpeg", ".JPEG")): 
+            img_names.append(img["file_name"][-5])
+        else:
+            print("Warning: it looks like the image files are not jpg, png, jpeg. The name of the image file is ", img)
+    #img_names = [img["file_name"][:-4] for img in coco["images"]]
+
+    #create label txt files for each image
+    for fname in img_names:
+        f = open(f"{file_path}labelTxt/{fname}.txt", 'w')
+        f.close()
+
+    with open(f"{file_path}images.txt", 'w') as f:
+        for fname in img_names:
+            print(fname, file = f)
+
+    #convert annotations to labels
+    for annotation in coco["annotations"]:
+        segmentation = annotation["segmentation"][0]
+        image_id = annotation["image_id"]
+        image_name = img_names[int(image_id) - 1]
+        coords = [[segmentation[index * 2], segmentation[(index * 2 + 1)]] for index in range(int(len(segmentation) / 2))]
+        corners = polygon_obb.MinimumRectangle(coords)
+        classname = conf.datasets.classes
+
+        ##Create file
+        with open(f"{label_path}{image_name}.txt", 'a') as f:
+            print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
+        annotation["segmentation"][0] = [corners[0][0], corners[0][1], corners[1][0], corners[1][1], corners[2][0], corners[2][1], corners[3][0], corners[3][1]]
+
+    for tvt_path in ["train/", "test/", "valid/"]:
+        train_path = f"{file_path}{tvt_path}"
+        if os.path.exists(train_path):
+            shutil.rmtree(train_path)
+            os.mkdir(train_path)
+            print("Warning: The ", tvt_path, " folder was found. I have deleted and created an empty folder")
+        else:
+            os.mkdir(train_path)
+        img_path = f"{train_path}images/"
+        if os.path.exists(img_path):
+            shutil.rmtree(img_path)
+            os.mkdir(img_path)
+            print("Warning: The ", tvt_path, "image/ folder was found. I have deleted and created an empty folder")
+        else:
+            os.mkdir(img_path)
+        label_path = f"{train_path}labelTxt/"
+        if os.path.exists(label_path):
+            shutil.rmtree(label_path)
+            os.mkdir(label_path)
+            print("Warning: The ", tvt_path, "labelTxt/ folder was found. I have deleted and created an empty folder")
+        else:
+            os.mkdir(label_path)
+            
+    per_train=conf.datasets.percent_train
+    per_valid=conf.datasets.percent_valid
+    per_test=conf.datasets.percent_test
+    seed=conf.datasets.seed
+    # Convert inputs to percentage as decimal
+    per_train = int(per_train) / 100
+    per_valid = int(per_valid) / 100
+    per_test = int(per_test) / 100
+
+    # Get total number of files before moving anything
+    num_of_files = len(img_names)
+
+    # Get number of files wanted for each folder
+    num_train = int(num_of_files * per_train)
+    num_valid = int(num_of_files * per_valid)
+    num_test = int(num_of_files * per_test)
+    
+    if seed == "-1":
+        seed = dataset_splitter.random_seed(os.path.basename(file_path), 8)
+    print("Using (" + str(seed) + ") as the random seed.")
+    path_to_new_folder = file_path + "train/"
+    polygon_obb.move_files(file_path, path_to_new_folder, num_train, seed)
+    path_to_new_folder = file_path + "test/"
+    polygon_obb.move_files(file_path, path_to_new_folder, num_test, seed)
+    path_to_new_folder = file_path + "valid/"
+    polygon_obb.move_files(file_path, path_to_new_folder, num_valid, seed)
+    shutil.rmtree(label_path)
+    
+    oldAnn_path = f"{file_path}annotations_old/"
+    if os.path.exists(oldAnn_path):
+        shutil.rmtree(oldAnn_path)
+        os.mkdir(oldAnn_path)
+    else:
+        os.mkdir(oldAnn_path)
+    shutil.move(annotation_path, f"{oldAnn_path}{annotation_file_name}")
+    
+    with open(file_path + 'data.yaml', 'w') as f:
+        print(f"path: {conf.datasets.data_path}{base_name_path[:-1]}", file=f)
+        print(f'train: train/images', file=f) #print(f'train: {conf.datasets.data_path}{base_name_path}train/images', file=f)
+        print(f'val: valid/images', file=f) #print(f'val: {conf.datasets.data_path}{base_name_path}valid/images', file=f)
+        print(f'test: test/images', file=f) #print(f'test: {conf.datasets.data_path}{base_name_path}test/images', file=f)
+        print('', file=f)
+        class_setting = conf.datasets.classes
+        print('nc: ' + str(len(conf.classes[class_setting])), file=f)
+        print("names: " + str(conf.classes[class_setting]), file=f)
+
+    with open(f"{annotation_path}", 'w') as f:
+      json.dump(coco, f)
+    
+    label_path = f"{file_path}labelTxt/"
+    if len(os.listdir(label_path)) == 0:
+        shutil.rmtree(label_path)
+    else:
+        print("The program has unexpected error, and there are still labels in the labelTxt folder.")
+        
+    img_path = f"{file_path}images/"
+    if len(os.listdir(img_path)) == 0:
+        shutil.rmtree(img_path)
+    else:
+        print("The program has unexpected error, and there are still labels in the labelTxt folder.")
+    
+    os.rename(zfile_path, f"{dir_path}old_{os.path.basename(zfile_path)}")
+    shutil.make_archive(file_path[:-1], "zip", dir_path, base_name_path)
+    
+    print("Complete!")
 
 ## GLOBAL VARIABLES ##
 file_path = ""
@@ -687,7 +848,7 @@ button_explore = Button(buttons_frame,
 button_run = Button(buttons_frame,
                     text="Run helper",
                     style='color.TButton',
-                    command=lambda: popup_export_helper(file_path))
+                    command=lambda: popup_export_helper(file_path, 0))
 
 button_scp = Button(buttons_frame,
                     text="SCP to Lambda",
@@ -699,6 +860,11 @@ button_exit = Button(buttons_frame,
                      style='color.TButton',
                      command=lambda: save_and_close())
 
+button_dota = Button(buttons_frame,
+                     text="Run DOTA helper",
+                     style='color.TButton',
+                     command=lambda: popup_export_helper(file_path, 1))
+
 button_edit_classes = Button(buttons_frame,
                              text="Edit Classes",
                              style='color.TButton',
@@ -707,6 +873,8 @@ button_edit_classes = Button(buttons_frame,
 button_explore.grid(row=0, column=0, padx=5, pady=5, ipadx=5, ipady=5)
 
 button_run.grid(row=0, column=1, padx=5, pady=5, ipadx=5, ipady=5)
+
+button_dota.grid(row=1, column=1, padx=5, pady=5, ipadx=5, ipady=5)
 
 button_scp.grid(row=0, column=2, padx=5, pady=5, ipadx=5, ipady=5)
 
