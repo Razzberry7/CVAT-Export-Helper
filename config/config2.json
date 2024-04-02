@@ -1,9 +1,9 @@
 {
-    "browse_default_path": "C:/Users/razbo/Downloads",
+    "browse_default_path": "C:/Users/Duwon/Downloads/TestingCVATExport",
     "version": 1.02,
     "lambda_server": {
-        "destination_path": "/mnt/data2/drone/mchenr49/yolov5/data/training_data/",
-        "username": "mchenr49"
+        "destination_path": "/mnt/data2/drone/hamduw78/data/training_data/",
+        "username": "hamduw78"
     },
     "classes": {
         "berry": [
@@ -39,8 +39,8 @@
         "percent_valid": 20,
         "percent_test": 10,
         "seed": "-1",
-        "data_path": "/mnt/data2/drone/mchenr49/yolov5/data/training_data/",
-        "classes": "bush"
+        "data_path": "/mnt/data2/drone/hamduw78/data/training_data/",
+        "classes": "CR"
     },
     "appearance": {
         "current_theme": "dark_theme",

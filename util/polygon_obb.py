@@ -78,39 +78,44 @@ def MinimumRectangle(points):
 
 #From dataset_splitter.py
 #modified 4/1/2024
-def move_files(path, path_to_new_folder, num_to_move, seed):
+def move_files(origin_path, path_to_new_folder, num_to_move, seed):
     random.seed(seed)
     # List the files at the path
-    img_files = os.listdir(path + "images/")
+    img_files = os.listdir(origin_path + "images/")
 
     # For as many as we're moving based on the percent of files we want to move
     for i in range(num_to_move):
         # Grab random image file
-        file = random.choice(img_files)
+        if(len(img_files) > 0):
+          file = random.choice(img_files)
+          img_files.remove(file)
 
-        # Define paths for image files in order to move them
-        src_img_file = os.path.join(path+ "images/", file)
-        dst_img_file = os.path.join(path_to_new_folder + "/images/", file)
+          # Define paths for image files in order to move them
+          src_img_file = os.path.join(origin_path+ "images/", file)
+          dst_img_file = os.path.join(path_to_new_folder + "images/", file)
 
-        # Display
-        print("This file: " + src_img_file + " is going to: " + dst_img_file)
+          # Display
+          print(i,": This file: " + src_img_file + " is going to: " + dst_img_file)
+          print(file)
+          
+          assert os.path.isfile(src_img_file)
 
-        # Move the file
-        shutil.move(src_img_file, dst_img_file)
+          # Move the file
+          shutil.move(src_img_file, dst_img_file)
 
-        fileType = -4
-        # Define paths for the corresponding text files in order to move them
-        if file.endswith((".jpg", ".JPG", ".png", ".PNG")):
-            fileType = -4
-        elif file.endswith((".jpeg", ".JPEG")): 
-            fileType = -5
-        else:
-            print("Warning: it looks like the image files are not jpg, png, jpeg. The name of the image file is ", file)
-        src_txt_file = os.path.join(path + "labelTxt/", file[:fileType] + ".txt")
-        dst_txt_file = os.path.join(path_to_new_folder + "labelTxt/", file[:fileType] + ".txt")
+          fileType = -4
+          # Define paths for the corresponding text files in order to move them
+          if file.endswith((".jpg", ".JPG", ".png", ".PNG")):
+              fileType = -4
+          elif file.endswith((".jpeg", ".JPEG")): 
+              fileType = -5
+          else:
+              print("Warning: it looks like the image files are not jpg, png, jpeg. The name of the image file is ", file)
+          src_txt_file = os.path.join(origin_path + "labelTxt/", file[:fileType] + ".txt")
+          dst_txt_file = os.path.join(path_to_new_folder + "labelTxt/", file[:fileType] + ".txt")
 
-        # Display
-        print("This file: " + src_txt_file + " is going to: " + dst_txt_file)
+          # Display
+          print("This file: " + src_txt_file + " is going to: " + dst_txt_file)
 
-        # Move the file
-        shutil.move(src_txt_file, dst_txt_file)
+          # Move the file
+          shutil.move(src_txt_file, dst_txt_file)

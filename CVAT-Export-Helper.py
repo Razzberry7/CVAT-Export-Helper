@@ -240,7 +240,7 @@ def popup_show_error(error_type, error_message):
 
 
 # Popup menu for exporting
-def popup_export_helper(file_path):
+def popup_export_helper(file_path, button_number):
     # Inner method for checking the percentages add up to 100
     def check_percentages():
         if int(eh_train_percent_tb.get()) + int(eh_valid_percent_tb.get()) + int(eh_test_percent_tb.get()) == 100:
@@ -262,7 +262,7 @@ def popup_export_helper(file_path):
             with open(f"{path_prefix}config/config2.json", 'w') as outfile:
                 json.dump(conf, outfile, indent=4)
 
-            if(False):
+            if(button_number == 1):
                 conf.datasets.percent_train = eh_train_percent_tb.get()
                 conf.datasets.percent_valid = eh_valid_percent_tb.get()
                 conf.datasets.percent_test = eh_valid_percent_tb.get()
@@ -591,9 +591,9 @@ def convertToDota(zfile_path):
     coco = json.load(open(annotation_path, 'r'))
     img_names = []
     for img in coco["images"]:
-        if img.endswith((".jpg", ".JPG", ".png", ".PNG")):
+        if img["file_name"].endswith((".jpg", ".JPG", ".png", ".PNG")):
             img_names.append(img["file_name"][:-4])
-        elif img.endswith((".jpeg", ".JPEG")): 
+        elif img["file_name"].endswith((".jpeg", ".JPEG")): 
             img_names.append(img["file_name"][-5])
         else:
             print("Warning: it looks like the image files are not jpg, png, jpeg. The name of the image file is ", img)
@@ -622,32 +622,32 @@ def convertToDota(zfile_path):
             print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
         annotation["segmentation"][0] = [corners[0][0], corners[0][1], corners[1][0], corners[1][1], corners[2][0], corners[2][1], corners[3][0], corners[3][1]]
 
-    for tvt_path in ["train/, test/, valid/"]:
+    for tvt_path in ["train/", "test/", "valid/"]:
         train_path = f"{file_path}{tvt_path}"
-        if os.path.exist(train_path):
+        if os.path.exists(train_path):
             shutil.rmtree(train_path)
             os.mkdir(train_path)
             print("Warning: The ", tvt_path, " folder was found. I have deleted and created an empty folder")
         else:
             os.mkdir(train_path)
         img_path = f"{train_path}images/"
-        if os.path.exist(img_path):
+        if os.path.exists(img_path):
             shutil.rmtree(img_path)
             os.mkdir(img_path)
             print("Warning: The ", tvt_path, "image/ folder was found. I have deleted and created an empty folder")
         else:
             os.mkdir(img_path)
         label_path = f"{train_path}labelTxt/"
-        if os.path.exist(label_path):
+        if os.path.exists(label_path):
             shutil.rmtree(label_path)
             os.mkdir(label_path)
             print("Warning: The ", tvt_path, "labelTxt/ folder was found. I have deleted and created an empty folder")
         else:
             os.mkdir(label_path)
             
-    per_train=conf.datasets.percent_train,
-    per_valid=conf.datasets.percent_valid,
-    per_test=conf.datasets.percent_test,
+    per_train=conf.datasets.percent_train
+    per_valid=conf.datasets.percent_valid
+    per_test=conf.datasets.percent_test
     seed=conf.datasets.seed
     # Convert inputs to percentage as decimal
     per_train = int(per_train) / 100
@@ -666,11 +666,11 @@ def convertToDota(zfile_path):
         seed = dataset_splitter.random_seed(os.path.basename(file_path), 8)
     print("Using (" + str(seed) + ") as the random seed.")
     path_to_new_folder = file_path + "train/"
-    polygon_obb.move_files(label_path, path_to_new_folder, num_train, seed)
+    polygon_obb.move_files(file_path, path_to_new_folder, num_train, seed)
     path_to_new_folder = file_path + "test/"
-    polygon_obb.move_files(label_path, path_to_new_folder, num_test, seed)
+    polygon_obb.move_files(file_path, path_to_new_folder, num_test, seed)
     path_to_new_folder = file_path + "valid/"
-    polygon_obb.move_files(label_path, path_to_new_folder, num_valid, seed)
+    polygon_obb.move_files(file_path, path_to_new_folder, num_valid, seed)
     shutil.rmtree(label_path)
     
     oldAnn_path = f"{file_path}annotations_old/"
@@ -694,8 +694,22 @@ def convertToDota(zfile_path):
     with open(f"{annotation_path}", 'w') as f:
       json.dump(coco, f)
     
-    os.remove(zfile_path)
+    label_path = f"{file_path}labelTxt/"
+    if len(os.listdir(label_path)) == 0:
+        shutil.rmtree(label_path)
+    else:
+        print("The program has unexpected error, and there are still labels in the labelTxt folder.")
+        
+    img_path = f"{file_path}images/"
+    if len(os.listdir(img_path)) == 0:
+        shutil.rmtree(img_path)
+    else:
+        print("The program has unexpected error, and there are still labels in the labelTxt folder.")
+    
+    os.rename(zfile_path, f"{dir_path}old_{os.path.basename(zfile_path)}")
     shutil.make_archive(file_path[:-1], "zip", dir_path, base_name_path)
+    
+    print("Complete!")
 
 ## GLOBAL VARIABLES ##
 file_path = ""
@@ -834,7 +848,7 @@ button_explore = Button(buttons_frame,
 button_run = Button(buttons_frame,
                     text="Run helper",
                     style='color.TButton',
-                    command=lambda: popup_export_helper(file_path))
+                    command=lambda: popup_export_helper(file_path, 0))
 
 button_scp = Button(buttons_frame,
                     text="SCP to Lambda",
@@ -846,6 +860,11 @@ button_exit = Button(buttons_frame,
                      style='color.TButton',
                      command=lambda: save_and_close())
 
+button_dota = Button(buttons_frame,
+                     text="Run DOTA helper",
+                     style='color.TButton',
+                     command=lambda: popup_export_helper(file_path, 1))
+
 button_edit_classes = Button(buttons_frame,
                              text="Edit Classes",
                              style='color.TButton',
@@ -854,6 +873,8 @@ button_edit_classes = Button(buttons_frame,
 button_explore.grid(row=0, column=0, padx=5, pady=5, ipadx=5, ipady=5)
 
 button_run.grid(row=0, column=1, padx=5, pady=5, ipadx=5, ipady=5)
+
+button_dota.grid(row=1, column=1, padx=5, pady=5, ipadx=5, ipady=5)
 
 button_scp.grid(row=0, column=2, padx=5, pady=5, ipadx=5, ipady=5)
 
