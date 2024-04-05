@@ -64,12 +64,7 @@ def zip_folder(path, zipf):
 
 # Function creating aforementioned structure
 def export_helper(path, per_train, per_valid, per_test, seed, data_path, class_setting):
-        conf.datasets.percent_train = per_train
-        conf.datasets.percent_valid = per_valid
-        conf.datasets.percent_test = per_test
-        conf.datasets.seed = seed
-        conf.datasets.data_path = data_path
-        conf.datasets.classes = class_setting
+        
 
     # try:
         if path != "":
@@ -258,17 +253,16 @@ def popup_export_helper(file_path, button_number):
             if eh_test_percent_tb.get() != "":
                 conf.datasets.percent_test = int(eh_test_percent_tb.get())
 
+            conf.datasets.seed = eh_seed_tb.get()
+            conf.datasets.data_path = eh_data_path_tb.get()
+            conf.datasets.classes = eh_class_settings_var.get()
+            
             # Save any changed config values in our dictionary
             with open(f"{path_prefix}config/config2.json", 'w') as outfile:
                 json.dump(conf, outfile, indent=4)
-
+            
             if(button_number == 1):
-                conf.datasets.percent_train = eh_train_percent_tb.get()
-                conf.datasets.percent_valid = eh_valid_percent_tb.get()
-                conf.datasets.percent_test = eh_valid_percent_tb.get()
-                conf.datasets.seed = eh_seed_tb.get()
-                conf.datasets.data_path = eh_data_path_tb.get()
-                conf.datasets.classes = eh_class_settings_var.get()
+                
                 convertToDota(file_path)
             else:
                 export_helper(file_path,
@@ -593,7 +587,7 @@ def convertToDota(zfile_path):
     for img in coco["images"]:
         if img["file_name"].endswith((".jpg", ".JPG", ".png", ".PNG")):
             img_names.append(img["file_name"][:-4])
-        elif img["file_name"].endswith((".jpeg", ".JPEG")): 
+        elif img["file_name"].endswith((".jpeg", ".JPEG")):
             img_names.append(img["file_name"][-5])
         else:
             print("Warning: it looks like the image files are not jpg, png, jpeg. The name of the image file is ", img)
@@ -671,7 +665,6 @@ def convertToDota(zfile_path):
     polygon_obb.move_files(file_path, path_to_new_folder, num_test, seed)
     path_to_new_folder = file_path + "valid/"
     polygon_obb.move_files(file_path, path_to_new_folder, num_valid, seed)
-    shutil.rmtree(label_path)
     
     oldAnn_path = f"{file_path}annotations_old/"
     if os.path.exists(oldAnn_path):

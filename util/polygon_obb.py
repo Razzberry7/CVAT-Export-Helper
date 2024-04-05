@@ -96,9 +96,6 @@ def move_files(origin_path, path_to_new_folder, num_to_move, seed):
 
           # Display
           print(i,": This file: " + src_img_file + " is going to: " + dst_img_file)
-          print(file)
-          
-          assert os.path.isfile(src_img_file)
 
           # Move the file
           shutil.move(src_img_file, dst_img_file)
