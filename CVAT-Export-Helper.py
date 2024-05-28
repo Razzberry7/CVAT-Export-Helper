@@ -569,7 +569,7 @@ def convertToDota(zfile_path):
         zfile.extractall(path = file_path)
     
     #create labels temporary folder to store the annotations
-    label_path = f"{file_path}labelTxt/"
+    label_path = f"{file_path}labels/"
     if os.path.exists(label_path):
         shutil.rmtree(label_path)
         os.mkdir(label_path)
@@ -584,18 +584,20 @@ def convertToDota(zfile_path):
         annotation_file_name = file
     coco = json.load(open(annotation_path, 'r'))
     img_names = []
+    img_type = -4
     for img in coco["images"]:
         if img["file_name"].endswith((".jpg", ".JPG", ".png", ".PNG")):
             img_names.append(img["file_name"][:-4])
         elif img["file_name"].endswith((".jpeg", ".JPEG")):
             img_names.append(img["file_name"][-5])
+            img_type = -5
         else:
             print("Warning: it looks like the image files are not jpg, png, jpeg. The name of the image file is ", img)
     #img_names = [img["file_name"][:-4] for img in coco["images"]]
 
     #create label txt files for each image
     for fname in img_names:
-        f = open(f"{file_path}labelTxt/{fname}.txt", 'w')
+        f = open(f"{file_path}labels/{fname}.txt", 'w')
         f.close()
 
     with open(f"{file_path}images.txt", 'w') as f:
@@ -606,14 +608,22 @@ def convertToDota(zfile_path):
     for annotation in coco["annotations"]:
         segmentation = annotation["segmentation"][0]
         image_id = annotation["image_id"]
-        image_name = img_names[int(image_id) - 1]
+        image = coco["images"][0]
+        image_name = ""
+        for imgObject in coco["images"]:
+            if imgObject["id"] == int(image_id):
+                image = imgObject
+                image_name = imgObject["file_name"][:img_type]
+        img_width = int(image["width"])
+        img_height = int(image["height"])
         coords = [[segmentation[index * 2], segmentation[(index * 2 + 1)]] for index in range(int(len(segmentation) / 2))]
         corners = polygon_obb.MinimumRectangle(coords)
         classname = conf.datasets.classes
 
         ##Create file
         with open(f"{label_path}{image_name}.txt", 'a') as f:
-            print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
+            print(f"0 {(corners[0][0]/img_width)} {corners[0][1]/img_height} {corners[1][0]/img_width} {corners[1][1]/img_height} {corners[2][0]/img_width} {corners[2][1]/img_height} {corners[3][0]/img_width} {corners[3][1]/img_height}", file=f) #hard coded to CR
+            #print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
         annotation["segmentation"][0] = [corners[0][0], corners[0][1], corners[1][0], corners[1][1], corners[2][0], corners[2][1], corners[3][0], corners[3][1]]
 
     for tvt_path in ["train/", "test/", "valid/"]:
@@ -631,11 +641,11 @@ def convertToDota(zfile_path):
             print("Warning: The ", tvt_path, "image/ folder was found. I have deleted and created an empty folder")
         else:
             os.mkdir(img_path)
-        label_path = f"{train_path}labelTxt/"
+        label_path = f"{train_path}labels/"
         if os.path.exists(label_path):
             shutil.rmtree(label_path)
             os.mkdir(label_path)
-            print("Warning: The ", tvt_path, "labelTxt/ folder was found. I have deleted and created an empty folder")
+            print("Warning: The ", tvt_path, "labels/ folder was found. I have deleted and created an empty folder")
         else:
             os.mkdir(label_path)
             
@@ -659,12 +669,13 @@ def convertToDota(zfile_path):
     if seed == "-1":
         seed = dataset_splitter.random_seed(os.path.basename(file_path), 8)
     print("Using (" + str(seed) + ") as the random seed.")
-    path_to_new_folder = file_path + "train/"
-    polygon_obb.move_files(file_path, path_to_new_folder, num_train, seed)
+    
     path_to_new_folder = file_path + "test/"
     polygon_obb.move_files(file_path, path_to_new_folder, num_test, seed)
     path_to_new_folder = file_path + "valid/"
     polygon_obb.move_files(file_path, path_to_new_folder, num_valid, seed)
+    path_to_new_folder = file_path + "train/"
+    polygon_obb.move_files(file_path, path_to_new_folder, num_train + 2, seed)
     
     oldAnn_path = f"{file_path}annotations_old/"
     if os.path.exists(oldAnn_path):
@@ -680,24 +691,27 @@ def convertToDota(zfile_path):
         print(f'val: valid/images', file=f) #print(f'val: {conf.datasets.data_path}{base_name_path}valid/images', file=f)
         print(f'test: test/images', file=f) #print(f'test: {conf.datasets.data_path}{base_name_path}test/images', file=f)
         print('', file=f)
-        class_setting = conf.datasets.classes
-        print('nc: ' + str(len(conf.classes[class_setting])), file=f)
-        print("names: " + str(conf.classes[class_setting]), file=f)
+        # class_setting = conf.datasets.classes
+        # print('nc: ' + str(len(conf.classes[class_setting])), file=f)
+        # print("names: " + str(conf.classes[class_setting]), file=f)
+        print('names:', file=f)
+        print('  0: CR', file=f)
+        print('  1: dummy', file=f)
 
     with open(f"{annotation_path}", 'w') as f:
       json.dump(coco, f)
     
-    label_path = f"{file_path}labelTxt/"
+    label_path = f"{file_path}labels/"
     if len(os.listdir(label_path)) == 0:
         shutil.rmtree(label_path)
     else:
-        print("The program has unexpected error, and there are still labels in the labelTxt folder.")
+        print("The program has unexpected error, and there are still labels in the labels folder.")
         
     img_path = f"{file_path}images/"
     if len(os.listdir(img_path)) == 0:
         shutil.rmtree(img_path)
     else:
-        print("The program has unexpected error, and there are still labels in the labelTxt folder.")
+        print("The program has unexpected error, and there are still labels in the labels folder.")
     
     os.rename(zfile_path, f"{dir_path}old_{os.path.basename(zfile_path)}")
     shutil.make_archive(file_path[:-1], "zip", dir_path, base_name_path)

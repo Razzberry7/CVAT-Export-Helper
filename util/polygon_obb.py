@@ -108,8 +108,8 @@ def move_files(origin_path, path_to_new_folder, num_to_move, seed):
               fileType = -5
           else:
               print("Warning: it looks like the image files are not jpg, png, jpeg. The name of the image file is ", file)
-          src_txt_file = os.path.join(origin_path + "labelTxt/", file[:fileType] + ".txt")
-          dst_txt_file = os.path.join(path_to_new_folder + "labelTxt/", file[:fileType] + ".txt")
+          src_txt_file = os.path.join(origin_path + "labels/", file[:fileType] + ".txt")
+          dst_txt_file = os.path.join(path_to_new_folder + "labels/", file[:fileType] + ".txt")
 
           # Display
           print("This file: " + src_txt_file + " is going to: " + dst_txt_file)

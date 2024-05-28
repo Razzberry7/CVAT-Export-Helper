@@ -1,5 +1,5 @@
 {
-    "browse_default_path": "C:/Users/Duwon/Downloads/TestingCVATExport",
+    "browse_default_path": "C:/Users/Duwon/Downloads/CRData",
     "version": 1.11,
     "lambda_server": {
         "destination_path": "/mnt/data2/drone/hamduw78/data/training_data/",
@@ -38,7 +38,7 @@
         "percent_train": 70,
         "percent_valid": 20,
         "percent_test": 10,
-        "seed": "-1",
+        "seed": "7",
         "data_path": "/mnt/data2/drone/hamduw78/data/training_data/",
         "classes": "CR"
     },
