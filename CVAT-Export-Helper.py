@@ -27,6 +27,7 @@ import json
 import util.config_parser as config_parser
 import util.dataset_splitter as dataset_splitter
 import util.polygon_obb as polygon_obb
+import util.split_image as split
 
 # Things needed for building with Pyinstaller
 building = False
@@ -552,7 +553,31 @@ def popup_add_to_config():
                 style='color.TButton',
                 command=lambda: remove(dropdown_val.get()))
     b2.grid(row=3, column=2, padx=5, pady=5)
-    
+
+def splitImg(zfile_path):
+    dim = 640
+    if(zfile_path != ""):
+        #extract the zipped file
+        dir_path = os.path.dirname(zfile_path) + "/"
+        base_name_path = os.path.basename(zfile_path)[:-4]
+        new_folder_path = f"{dir_path}{base_name_path}_{dim}x{dim}/"
+        os.rename(f"{dir_path}{base_name_path}/", new_folder_path)
+        with ZipFile(zfile_path, "r") as zfile:
+            zfile.extractall(path = dir_path)
+
+        for tvt_path in ["train/", "test/", "valid/"]:
+            train_path = f"{new_folder_path}{tvt_path}"
+            img_folder_path = f"{train_path}images/"
+            for file in os.listdir(img_folder_path):
+                image_path = img_folder_path + file
+                split.divideImage(train_path, image_path, img_dim=640)
+                # os.remove(f"{train_path}labels/{file}")
+        shutil.make_archive(new_folder_path[:-1], "zip", dir_path, f"{base_name_path}_{dim}x{dim}")
+        global file_path
+        file_path = f"{new_folder_path[:-1]}.zip"
+        print("Complete!")
+        
+
 def convertToDota(zfile_path):
   if(zfile_path != ""):
     #extract the zipped file
@@ -847,6 +872,11 @@ buttons_frame = Frame(input_frame)
 
 buttons_frame.config(style='settings.TFrame')
 
+button_split = Button(buttons_frame,
+                     text = "Split DOTA 640",
+                     style = "color.TButton",
+                     command = lambda: splitImg(file_path))
+
 button_explore = Button(buttons_frame,
                         text="Browse Files",
                         style='color.TButton',
@@ -882,6 +912,8 @@ button_explore.grid(row=0, column=0, padx=5, pady=5, ipadx=5, ipady=5)
 button_run.grid(row=0, column=1, padx=5, pady=5, ipadx=5, ipady=5)
 
 button_dota.grid(row=1, column=1, padx=5, pady=5, ipadx=5, ipady=5)
+
+button_split.grid(row=1, column=2, padx=5, pady=5, ipadx=5, ipady=5)
 
 button_scp.grid(row=0, column=2, padx=5, pady=5, ipadx=5, ipady=5)
 
