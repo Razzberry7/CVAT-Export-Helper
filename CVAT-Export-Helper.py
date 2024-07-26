@@ -562,6 +562,7 @@ def splitImg(zfile_path):
         base_name_path = os.path.basename(zfile_path)[:-4]
         new_folder_path = f"{dir_path}{base_name_path}_{dim}x{dim}/"
         os.rename(f"{dir_path}{base_name_path}/", new_folder_path)
+        counter = 0
         with ZipFile(zfile_path, "r") as zfile:
             zfile.extractall(path = dir_path)
 
@@ -570,9 +571,10 @@ def splitImg(zfile_path):
             img_folder_path = f"{train_path}images/"
             for file in os.listdir(img_folder_path):
                 image_path = img_folder_path + file
-                split.divideImage(train_path, image_path, img_dim=640)
+                counter = split.divideImage(train_path, image_path, split_counter=counter, img_dim=640)
                 # os.remove(f"{train_path}labels/{file}")
         shutil.make_archive(new_folder_path[:-1], "zip", dir_path, f"{base_name_path}_{dim}x{dim}")
+        print(f"counter = {counter}")
         global file_path
         file_path = f"{new_folder_path[:-1]}.zip"
         print("Complete!")
@@ -631,25 +633,31 @@ def convertToDota(zfile_path):
 
     #convert annotations to labels
     for annotation in coco["annotations"]:
-        segmentation = annotation["segmentation"][0]
-        image_id = annotation["image_id"]
-        image = coco["images"][0]
-        image_name = ""
-        for imgObject in coco["images"]:
-            if imgObject["id"] == int(image_id):
-                image = imgObject
-                image_name = imgObject["file_name"][:img_type]
-        img_width = int(image["width"])
-        img_height = int(image["height"])
-        coords = [[segmentation[index * 2], segmentation[(index * 2 + 1)]] for index in range(int(len(segmentation) / 2))]
-        corners = polygon_obb.MinimumRectangle(coords)
-        classname = conf.datasets.classes
+        if len(annotation["segmentation"]) == 0:
+            print("there was annotation without any segmentation in it, maybe it is a horizontal bounding box, not obb?")
+        else:
+            segmentation = annotation["segmentation"][0]
+            image_id = annotation["image_id"]
+            image = coco["images"][0]
+            image_name = None
+            for imgObject in coco["images"]:
+                if imgObject["id"] == int(image_id):
+                    image = imgObject
+                    image_name = imgObject["file_name"][:img_type]
+            if image_name is not None:
+                img_width = int(image["width"])
+                img_height = int(image["height"])
+                coords = [[segmentation[index * 2], segmentation[(index * 2 + 1)]] for index in range(int(len(segmentation) / 2))]
+                corners = polygon_obb.MinimumRectangle(coords)
+                classname = conf.datasets.classes
 
-        ##Create file
-        with open(f"{label_path}{image_name}.txt", 'a') as f:
-            print(f"0 {(corners[0][0]/img_width)} {corners[0][1]/img_height} {corners[1][0]/img_width} {corners[1][1]/img_height} {corners[2][0]/img_width} {corners[2][1]/img_height} {corners[3][0]/img_width} {corners[3][1]/img_height}", file=f) #hard coded to CR
-            #print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
-        annotation["segmentation"][0] = [corners[0][0], corners[0][1], corners[1][0], corners[1][1], corners[2][0], corners[2][1], corners[3][0], corners[3][1]]
+                ##Create file
+                with open(f"{label_path}{image_name}.txt", 'a') as f:
+                    print(f"0 {(corners[0][0]/img_width)} {corners[0][1]/img_height} {corners[1][0]/img_width} {corners[1][1]/img_height} {corners[2][0]/img_width} {corners[2][1]/img_height} {corners[3][0]/img_width} {corners[3][1]/img_height}", file=f) #hard coded to CR
+                    #print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
+                annotation["segmentation"][0] = [corners[0][0], corners[0][1], corners[1][0], corners[1][1], corners[2][0], corners[2][1], corners[3][0], corners[3][1]]
+            else:
+                print("no image")
 
     for tvt_path in ["train/", "test/", "valid/"]:
         train_path = f"{file_path}{tvt_path}"

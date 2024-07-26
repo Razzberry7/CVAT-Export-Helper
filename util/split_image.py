@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 
-def divideImage(folder_path, image_path, img_dim=640):
+def divideImage(folder_path, image_path, split_counter, img_dim=640):
+  counter = split_counter
   im = Image.open(image_path)
   img_name = Path(image_path).stem
   img_type = str(im.format)
@@ -38,6 +39,8 @@ def divideImage(folder_path, image_path, img_dim=640):
             points.append(coord)
         #if(len(points) > 1 or (center[0] > low_x and center[0] < high_x and center[1] > low_y and center[1] < high_y)):
         if(len(points) > 1):
+          if(len(points) < 4):
+            counter = counter + 1
           coords = [(boxlist[1] - low_x) / x_scale, (boxlist[2]- low_y) / y_scale, (boxlist[3] - low_x) / x_scale, (boxlist[4] - low_y) / y_scale, (boxlist[5] - low_x) / x_scale, (boxlist[6] - low_y) / y_scale , (boxlist[7] - low_x) / x_scale, (boxlist[8] - low_y) / y_scale]
           clipped_coords = [min(max(0, coord), 1) for coord in coords]
           newList.append(clipped_coords)
@@ -53,3 +56,4 @@ def divideImage(folder_path, image_path, img_dim=640):
   im.close()
   os.remove(image_path)
   os.remove(txt_path)
+  return counter
