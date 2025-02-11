@@ -23,6 +23,7 @@ from paramiko import SSHClient
 from scp import SCPClient
 from PIL import ImageTk, Image
 import json
+import math
 
 import util.config_parser as config_parser
 import util.dataset_splitter as dataset_splitter
@@ -53,6 +54,27 @@ def browse_files():
     file_explorer_label.configure(text="File Opened: " + filename)
     conf.browse_default_path = os.path.dirname(file_path)
 
+def scale_of(item, low_x, high_x, low_y, high_y, vector):
+  scale = 0
+  if(item[0] < low_x):
+    scale = (low_x - item[0]) / vector[0]
+  if(item[0] > high_x):
+    scale = (high_x - item[0]) / vector[0]
+  if(item[1] < low_y):
+    scale = (low_y - item[1]) / vector[1]
+  if(item[1] > high_y):
+    scale = (high_y - item[1]) / vector[1]
+  return scale
+
+def distance(a, b):
+  x_diff = (a[0] - b[0])
+  y_diff = (a[1] - b[1])
+  return math.sqrt(x_diff*x_diff + y_diff * y_diff)
+
+def size_of(point, right_p, left_p):
+  width = distance(point, right_p)
+  height = distance(point, left_p)
+  return width * height
 
 # Function for zipping a folder
 def zip_folder(path, zipf):
@@ -561,10 +583,16 @@ def splitImg(zfile_path):
         dir_path = os.path.dirname(zfile_path) + "/"
         base_name_path = os.path.basename(zfile_path)[:-4]
         new_folder_path = f"{dir_path}{base_name_path}_{dim}x{dim}/"
-        os.rename(f"{dir_path}{base_name_path}/", new_folder_path)
+        #os.rename(f"{dir_path}{base_name_path}/", new_folder_path)
         counter = 0
-        with ZipFile(zfile_path, "r") as zfile:
-            zfile.extractall(path = dir_path)
+        if(os.path.exists("{dir_path}{base_name_path}/")):
+            os.rename(f"{dir_path}{base_name_path}/", new_folder_path)
+            with ZipFile(zfile_path, "r") as zfile:
+                zfile.extractall(path = dir_path)
+        else:
+            with ZipFile(zfile_path, "r") as zfile1:
+                zfile1.extractall(path = dir_path)
+            os.rename(f"{dir_path}{base_name_path}/", new_folder_path)
 
         for tvt_path in ["train/", "test/", "valid/"]:
             train_path = f"{new_folder_path}{tvt_path}"
@@ -573,8 +601,13 @@ def splitImg(zfile_path):
                 image_path = img_folder_path + file
                 counter = split.divideImage(train_path, image_path, split_counter=counter, img_dim=640)
                 # os.remove(f"{train_path}labels/{file}")
+                
+        with open(f"{dir_path}{base_name_path}_{dim}x{dim}/data.yaml", "r") as data_file:
+            lines = data_file.read()
+        lines = lines.replace(f"{base_name_path}", f"{base_name_path}_{dim}x{dim}")
+        with open(f"{dir_path}{base_name_path}_{dim}x{dim}/data.yaml", "w") as data_file:
+            data_file.write(lines)
         shutil.make_archive(new_folder_path[:-1], "zip", dir_path, f"{base_name_path}_{dim}x{dim}")
-        print(f"counter = {counter}")
         global file_path
         file_path = f"{new_folder_path[:-1]}.zip"
         print("Complete!")
@@ -632,9 +665,12 @@ def convertToDota(zfile_path):
             print(fname, file = f)
 
     #convert annotations to labels
+    counter = 0
     for annotation in coco["annotations"]:
-        if len(annotation["segmentation"]) == 0:
-            print("there was annotation without any segmentation in it, maybe it is a horizontal bounding box, not obb?")
+        # final_coords = None
+        if len(annotation["segmentation"][0]) < 8:
+            print(annotation["segmentation"][0], len(annotation["segmentation"][0]))
+            print("there was annotation without any or less than 4 points polygon segmentation in it, maybe it is a horizontal bounding box, not obb? or maybe it is a triangle")
         else:
             segmentation = annotation["segmentation"][0]
             image_id = annotation["image_id"]
@@ -658,6 +694,176 @@ def convertToDota(zfile_path):
                 annotation["segmentation"][0] = [corners[0][0], corners[0][1], corners[1][0], corners[1][1], corners[2][0], corners[2][1], corners[3][0], corners[3][1]]
             else:
                 print("no image")
+            # segmentation = annotation["segmentation"][0]
+            # image_id = annotation["image_id"]
+            # image = coco["images"][0]
+            # image_name = None
+            # for imgObject in coco["images"]:
+            #     if imgObject["id"] == int(image_id):
+            #         image = imgObject
+            #         image_name = imgObject["file_name"][:img_type]
+            # if image_name is not None:
+            #     img_width = int(image["width"])
+            #     img_height = int(image["height"])
+            #     coords = [[segmentation[index * 2], segmentation[(index * 2 + 1)]] for index in range(int(len(segmentation) / 2))]
+            #     if(len(coords)) < 4:
+            #         print("before ", coords)
+            #     corners = polygon_obb.MinimumRectangle(coords)
+            #     classname = conf.datasets.classes
+            #     points = []
+            #     if(len(coords)) < 4:
+            #         print(coords)
+            #     box = [(coords[0][0],coords[0][1]),(coords[1][0],coords[1][1]),(coords[2][0],coords[2][1]),(coords[3][0],coords[3][1])]
+            #     coordinates = []
+            #     for coord in corners:
+            #         if(coord[0] >= 0 and coord[0] <= img_width and coord[1] >= 0 and coord[1] <= img_height):
+            #             points.append((coord[0],coord[1]))
+            #         #if(len(points) > 1 or (center[0] > 0 and center[0] < image_width_for_clip and center[1] > 0 and center[1] < image_height_for_clip)):
+            #     if(len(points) > 1):
+            #         coords_tuple = [(coords[0][0],coords[0][1]),(coords[1][0],coords[1][1]),(coords[2][0],coords[2][1]),(coords[3][0],coords[3][1])]
+            #         if(len(points) == 3):
+            #             counter = counter + 1
+            #             print("points in box should be 3: ",len(points))
+            #             for item in box:
+            #                 if item not in points:
+            #                     item_index = box.index(item)
+            #                     left_p = box[(item_index + 3) % 4]
+            #                     right_p = box[(item_index + 1) % 4]
+            #                     fourth_p = box[(item_index + 2) % 4]
+                                
+            #                     vector = (left_p[0] - item[0], left_p[1] - item[1])
+            #                     scale = scale_of(item, 0, img_width, 0, img_height, vector)
+            #                     left_n_p = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                     left_n_r = (right_p[0] + scale * vector[0], right_p[1] + scale * vector[1])
+            #                     left_size = size_of(left_n_p, left_n_r, left_p)
+                                
+            #                     vector = (right_p[0] - item[0], right_p[1] - item[1])
+            #                     scale = scale_of(item, 0, img_width, 0, img_height, vector)
+            #                     right_n_p = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                     right_n_l = (left_p[0] + scale * vector[0], left_p[1] + scale * vector[1])
+            #                     right_size = size_of(right_n_p, right_n_l, right_p)
+                                
+                                
+            #                     if(left_size > right_size):
+            #                         coords_tuple[item_index] = left_n_p
+            #                         coords_tuple[(item_index + 3) % 4] = left_p
+            #                         coords_tuple[(item_index + 2) % 4] = fourth_p
+            #                         coords_tuple[(item_index + 1) % 4] = left_n_r
+            #                     else:
+            #                         coords_tuple[item_index] = right_n_p
+            #                         coords_tuple[(item_index + 1) % 4] = right_p
+            #                         coords_tuple[(item_index + 2) % 4] = fourth_p
+            #                         coords_tuple[(item_index + 3) % 4] = right_n_l
+            #         if(len(points) == 2):
+            #             print("points in box should be 2: ",len(points))
+            #             size_coords = []
+            #             counter = counter + 1
+            #             for item in box:
+            #                 if item not in points:
+            #                     item_index = box.index(item)
+            #                     left_p = box[(item_index + 3) % 4]
+            #                     right_p = box[(item_index + 1) % 4]
+            #                     fourth_p = box[(item_index + 2) % 4]
+            #                     new_item = item
+            #                     new_right = right_p
+            #                     new_left = left_p
+                                
+            #                     new_size = size_of(new_item, right_p, left_p)
+            #                     if left_p in points:
+            #                         vector = (left_p[0] - item[0], left_p[1] - item[1])
+            #                         if(item[0] < 0):
+            #                             scale = (0 - item[0]) / vector[0]
+            #                             new_item = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_right = (right_p[0] + scale * vector[0], right_p[1] + scale * vector[1])
+            #                             new_size = size_of(new_item, new_right, left_p)
+            #                         if(item[0] > img_width):
+            #                             scale = (img_width - item[0]) / vector[0]
+            #                             new_item = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_right = (right_p[0] + scale * vector[0], right_p[1] + scale * vector[1])
+            #                             new_size = size_of(new_item, new_right, left_p)
+                                
+            #                         if(item[1] < 0):
+            #                             scale = (0 - item[1]) / vector[1]
+            #                             new_item_y = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_right_y = (right_p[0] + scale * vector[0], right_p[1] + scale * vector[1])
+            #                             new_size_y = size_of(new_item_y, new_right_y, left_p)
+            #                             if(new_size_y < new_size):
+            #                                 new_item = new_item_y
+            #                                 new_right = new_right_y
+            #                                 new_size = new_size
+            #                         if(item[1] > img_height):
+            #                             scale = (img_height - item[1]) / vector[1]
+            #                             new_item_y = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_right_y = (right_p[0] + scale * vector[0], right_p[1] + scale * vector[1])
+            #                             new_size_y = size_of(new_item_y, new_right_y, left_p)
+            #                             if(new_size_y < new_size):
+            #                                 new_item = new_item_y
+            #                                 new_right = new_right_y
+            #                                 new_size = new_size
+                                
+                                
+            #                     if right_p in points:
+            #                         vector = (right_p[0] - item[0], right_p[1] - item[1])
+            #                         if(item[0] < 0):
+            #                             scale = (0 - item[0]) / vector[0]
+            #                             new_item = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_left = (left_p[0] + scale * vector[0], left_p[1] + scale * vector[1])
+            #                             new_size = size_of(new_item, new_left, right_p)
+            #                         if(item[0] > img_width):
+            #                             scale = (img_width - item[0]) / vector[0]
+            #                             new_item = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_left = (left_p[0] + scale * vector[0], left_p[1] + scale * vector[1])
+            #                             new_size = size_of(new_item, new_left, right_p)
+                                
+            #                         if(item[1] < 0):
+            #                             scale = (0 - item[1]) / vector[1]
+            #                             new_item_y = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_left_y = (left_p[0] + scale * vector[0], left_p[1] + scale * vector[1])
+            #                             new_size_y = size_of(new_item_y, new_left_y, right_p)
+            #                             if(new_size_y < new_size):
+            #                                 new_item = new_item_y
+            #                                 new_left = new_left_y
+            #                                 new_size = new_size
+            #                         if(item[1] > img_height):
+            #                             scale = (img_height - item[1]) / vector[1]
+            #                             new_item_y = (item[0] + scale * vector[0], item[1] + scale * vector[1])
+            #                             new_left_y = (left_p[0] + scale * vector[0], left_p[1] + scale * vector[1])
+            #                             new_size_y = size_of(new_item_y, new_left_y, right_p)
+            #                             if(new_size_y < new_size):
+            #                                 new_item = new_item_y
+            #                                 new_left = new_left_y
+            #                                 new_size = new_size
+                                
+            #                     coords_tuple[item_index] = new_item
+            #                     coords_tuple[(item_index + 3) % 4] = new_left
+            #                     coords_tuple[(item_index + 2) % 4] = fourth_p
+            #                     coords_tuple[(item_index + 1) % 4] = new_right
+            #                     size = size_of(new_item, new_left, new_right)
+            #                     size_coords.append([size, list(coords_tuple)])
+            #             if(size_coords[0][0] < size_coords[1][0]):
+            #                 coords_tuple = size_coords[0][1]
+                
+            #         clipped_coords = [(coords_tuple[0][0] - 0) / img_width, (coords_tuple[0][1]- 0) / img_height, (coords_tuple[1][0] - 0) / img_width, (coords_tuple[1][1] - 0) / img_height, (coords_tuple[2][0] - 0) / img_width, (coords_tuple[2][1] - 0) / img_height , (coords_tuple[3][0] - 0) / img_width, (coords_tuple[3][1] - 0) / img_height]
+
+            #         for clipped_coord in clipped_coords:
+            #             if(clipped_coord < 0 or clipped_coord > 1):
+            #                 print("coord out of bound: ", clipped_coords)
+            #                 clipped_coord = max(0, min(1, clipped_coord))
+            #                 print("New Coord: ", clipped_coords)
+            #         final_coords = clipped_coords
+                    
+            #         coordinates.append(final_coords)
+
+            #     print("Counter", counter)
+            #     ##Create file
+            #     with open(f"{label_path}{image_name}.txt", 'a') as f:
+            #         print(f"0 {final_coords[0]} {final_coords[1]} {final_coords[2]} {final_coords[3]} {final_coords[4]} {final_coords[5]} {final_coords[6]} {final_coords[7]}", file = f) #hard coded to CR
+            #         #print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
+            #         #print(f"0 {final_coords[0]} {final_coords[1]} {final_coords[2]} {final_coords[3]} {final_coords[4]} {final_coords[5]} {final_coords[6]} {final_coords[7]}") #hard coded to CR
+
+            #     annotation["segmentation"][0] = coordinates
+            # else:
+            #     print("no image")
 
     for tvt_path in ["train/", "test/", "valid/"]:
         train_path = f"{file_path}{tvt_path}"
