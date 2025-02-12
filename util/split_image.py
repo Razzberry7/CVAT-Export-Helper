@@ -39,12 +39,34 @@ def divideImage(folder_path, image_path, split_counter, img_dim=640):
     lines = file.read().splitlines()
   x, y = im.size
 
+  #ceiling division
+  num_of_row = -(x // -img_dim)
+  x_padding = img_dim - (x // num_of_row)
+  num_of_col = -(y // -img_dim)
+  y_padding = img_dim - (y // num_of_col)
   for i in range(0, x, img_dim):
     for j in range(0, y, img_dim):
-      low_x = (i) / x
-      low_y = (j) / y
-      high_x = (i + img_dim) / x
-      high_y = (j + img_dim) / y
+      #adds 10 pixel padding to the images
+      start_i = (i - x_padding * (i / img_dim))
+      start_j = (j - y_padding * (j / img_dim))
+      low_x =  start_i / x
+      low_y =  start_j/ y
+      high_x = (start_i + img_dim) / x
+      high_y = (start_j + img_dim) / y
+      
+      
+      
+      if (i + img_dim) > x:
+        high_x = 1
+        low_x = 1 - img_dim / x
+        start_i = x - img_dim
+      if (j + img_dim) > y:
+        high_y = 1
+        low_y = 1 - img_dim / y
+        start_j = y - img_dim
+      
+      print("\nlow_x,     low_y,    high_x,     high_y,      i,     j,       x,    y,        x_padding,        y_padding")
+      print(low_x, low_y, high_x, high_y, i, j, x, y, x_padding, y_padding, sep="\t")
 
       newList = []
       x_scale = high_x - low_x
@@ -191,11 +213,11 @@ def divideImage(folder_path, image_path, split_counter, img_dim=640):
               clipped_coord = max(0, min(1, clipped_coord))
           newList.append(clipped_coords)
 
-      newIm = im.crop((i, j, i + img_dim, j + img_dim))
+      newIm = im.crop((start_i, start_j, start_i + img_dim, start_j + img_dim))
 
 
-      newIm.save(f"{folder_path}images/{img_name}_{str(i)}_{str(j)}.{img_type}")
-      txt_file = open(f"{folder_path}labels/{img_name}_{str(i)}_{str(j)}.txt", "w")
+      newIm.save(f"{folder_path}images/{img_name}_{str(start_i)}_{str(start_j)}.{img_type}")
+      txt_file = open(f"{folder_path}labels/{img_name}_{str(start_i)}_{str(start_j)}.txt", "w")
       for coordinates in newList:
         print(f"0 {coordinates[0]} {coordinates[1]} {coordinates[2]} {coordinates[3]} {coordinates[4]} {coordinates[5]} {coordinates[6]} {coordinates[7]}", file = txt_file)
       txt_file.close()
