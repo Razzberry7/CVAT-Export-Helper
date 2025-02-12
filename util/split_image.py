@@ -27,7 +27,7 @@ def size_of(point, right_p, left_p):
   return width * height
 
 
-def divideImage(folder_path, image_path, split_counter, img_dim=640):
+def divideImage(folder_path, image_path, destination_path, split_counter, img_dim=640):
   counter = split_counter
   im = Image.open(image_path)
   img_name = Path(image_path).stem
@@ -54,8 +54,7 @@ def divideImage(folder_path, image_path, split_counter, img_dim=640):
       high_x = (start_i + img_dim) / x
       high_y = (start_j + img_dim) / y
       
-      
-      
+      #overlap the last row/column images
       if (i + img_dim) > x:
         high_x = 1
         low_x = 1 - img_dim / x
@@ -64,10 +63,7 @@ def divideImage(folder_path, image_path, split_counter, img_dim=640):
         high_y = 1
         low_y = 1 - img_dim / y
         start_j = y - img_dim
-      
-      print("\nlow_x,     low_y,    high_x,     high_y,      i,     j,       x,    y,        x_padding,        y_padding")
-      print(low_x, low_y, high_x, high_y, i, j, x, y, x_padding, y_padding, sep="\t")
-
+        
       newList = []
       x_scale = high_x - low_x
       y_scale = high_y - low_y
@@ -216,8 +212,8 @@ def divideImage(folder_path, image_path, split_counter, img_dim=640):
       newIm = im.crop((start_i, start_j, start_i + img_dim, start_j + img_dim))
 
 
-      newIm.save(f"{folder_path}images/{img_name}_{str(start_i)}_{str(start_j)}.{img_type}")
-      txt_file = open(f"{folder_path}labels/{img_name}_{str(start_i)}_{str(start_j)}.txt", "w")
+      newIm.save(f"{destination_path}images/{img_name}_{str(start_i)}_{str(start_j)}.{img_type}")
+      txt_file = open(f"{destination_path}labels/{img_name}_{str(start_i)}_{str(start_j)}.txt", "w")
       for coordinates in newList:
         print(f"0 {coordinates[0]} {coordinates[1]} {coordinates[2]} {coordinates[3]} {coordinates[4]} {coordinates[5]} {coordinates[6]} {coordinates[7]}", file = txt_file)
       txt_file.close()

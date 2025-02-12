@@ -1,5 +1,5 @@
 {
-    "browse_default_path": "C:/Users/Duwon/Downloads/testObb",
+    "browse_default_path": "C:/Users/Duwon/Downloads",
     "version": 1.11,
     "lambda_server": {
         "destination_path": "/mnt/data2/drone/hamduw78/data/training_data/",
