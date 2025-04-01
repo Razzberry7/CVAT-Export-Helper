@@ -726,7 +726,31 @@ def convertToDota(zfile_path):
     counter = 0
     for annotation in coco["annotations"]:
         # final_coords = None
-        if len(annotation["segmentation"][0]) < 8:
+        if len(annotation["segmentation"]) == 0:
+            bound_box = annotation["bbox"]
+            rotation = float(annotation["attributes"]["rotation"]) * math.pi / 180
+            image_id = annotation["image_id"]
+            image = coco["images"][0]
+            image_name = None
+            for imgObject in coco["images"]:
+                if imgObject["id"] == int(image_id):
+                    image = imgObject
+                    image_name = imgObject["file_name"][:img_type]
+            if image_name is not None:
+                img_width = int(image["width"])
+                img_height = int(image["height"])
+                
+                corners = polygon_obb.rotateRect(bound_box[0], bound_box[1], bound_box[2], bound_box[3], rotation)
+                
+                
+                classname = conf.datasets.classes
+
+                ##Create file
+                with open(f"{label_path}{image_name}.txt", 'a') as f:
+                    print(f"0 {(corners[0][0]/img_width)} {corners[0][1]/img_height} {corners[1][0]/img_width} {corners[1][1]/img_height} {corners[2][0]/img_width} {corners[2][1]/img_height} {corners[3][0]/img_width} {corners[3][1]/img_height}", file=f) #hard coded to CR
+                    #print(f"{corners[0][0]} {corners[0][1]} {corners[1][0]} {corners[1][1]} {corners[2][0]} {corners[2][1]} {corners[3][0]} {corners[3][1]} {classname} 0", file=f)
+                    
+        elif len(annotation["segmentation"][0]) < 8:
             print(annotation["segmentation"][0], len(annotation["segmentation"][0]))
             print("there was annotation without any or less than 4 points polygon segmentation in it, maybe it is a horizontal bounding box, not obb? or maybe it is a triangle")
         else:
@@ -787,6 +811,7 @@ def convertToDota(zfile_path):
 
     # Get total number of files before moving anything
     num_of_files = len(img_names)
+    print(img_names)
 
     # Get number of files wanted for each folder
     num_train = int(num_of_files * per_train)

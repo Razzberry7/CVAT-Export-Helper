@@ -6,6 +6,23 @@ import shutil
 import random
 import string
 
+def cornerAngle(point, center):
+  x = point[0] - center[0]
+  y = point[1] - center[1]
+  length = math.sqrt(x*x+y*y)
+  theta = math.atan(y/x)
+  return theta, length
+  
+def rotateVector(length, theta, rotation, center):
+  new_theta = theta + rotation
+  return (length * math.cos(new_theta) + center[0], length * math.sin(new_theta) + center[1])
+
+def rotateRect(x, y, width, height, rotation):
+  center = (x+width/2,y+height/2)
+  theta, length = cornerAngle((x,y), center)
+  points = [rotateVector(length, theta+math.pi, rotation, center), rotateVector(length, math.pi-theta, rotation, center), rotateVector(length, theta, rotation, center), rotateVector(length, 0-theta, rotation, center)]
+  return points
+
 def smallestRect(j0, j1, vertices, coords):
   u = [0] * 2
   u[0] = coords[vertices[j1]]-coords[vertices[j0]]
